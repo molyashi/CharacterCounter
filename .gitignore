@@ -4,10 +4,6 @@ yarn-debug.log*
 yarn-error.log*
 .DS_Store
 dist/
-*.css
-*.map
-*.js
-*.html
 release/
 *.exe
 *.zip
