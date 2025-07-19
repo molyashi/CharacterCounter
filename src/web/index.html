@@ -3,6 +3,50 @@
   <head>
     <meta charset="UTF-8" />
     <title>文字数カウンター</title>
+    <script>
+      if (typeof snapshotResult !== 'undefined') {
+        const path = require('path');
+        const Module = require('module');
+
+        const entryPointDirPath = path.dirname(require.resolve('electron'));
+
+        const originalRequire = Module.prototype.require;
+        Module.prototype.require = function (module) {
+          try {
+            const absoluteFilePath = Module._resolveFilename(module, this, false);
+
+            if (absoluteFilePath.includes('node_modules')) {
+              let relativeFilePath = path.relative(entryPointDirPath, absoluteFilePath);
+
+              if (!relativeFilePath.startsWith('./')) {
+                relativeFilePath = `./${relativeFilePath}`;
+              }
+              if (process.platform === 'win32') {
+                relativeFilePath = relativeFilePath.replace(/\\/g, '/');
+              }
+
+              const cachedModule = snapshotResult.customRequire.cache[relativeFilePath];
+              if (cachedModule) {
+                return cachedModule.exports;
+              }
+            }
+          } catch(e) {
+            // ignore
+          }
+
+          return originalRequire.apply(this, arguments);
+        };
+
+        snapshotResult.setGlobals(
+          global,
+          process,
+          window,
+          document,
+          console,
+          global.require
+        );
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

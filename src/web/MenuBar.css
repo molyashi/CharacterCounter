@@ -19,11 +19,22 @@
   -webkit-app-region: no-drag;
   border-radius: 3px;
   transition: background-color 0.2s ease;
+  outline: none;
 }
 
 .menu-item:hover {
   background-color: #adadff;
   border-radius: 6px;
+}
+
+.menu-item.focused {
+  background-color: #c4c4ff;
+  border: 1px dotted #333348;
+  padding: 3px 11px;
+}
+
+.mnemonic-visible {
+  text-decoration: underline;
 }
 
 .menu-item-container {
@@ -50,9 +61,11 @@
   font-size: 14px;
   cursor: pointer;
   -webkit-app-region: no-drag;
+  outline: none;
 }
 
-.dropdown-item:hover {
+.dropdown-item:hover,
+.dropdown-item.selected {
   background-color: #5c5cff;
   color: #fff;
 }

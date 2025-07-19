@@ -1,6 +1,6 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { ipcRenderer } from 'electron';
 
-contextBridge.exposeInMainWorld('electronAPI', {
+window.electronAPI = {
   setAlwaysOnTop: (isAlwaysOnTop: boolean) => ipcRenderer.send('set-always-on-top', isAlwaysOnTop),
   readClipboard: () => ipcRenderer.invoke('read-clipboard'),
   openFile: () => ipcRenderer.invoke('open-file'),
@@ -8,7 +8,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   quitApp: () => ipcRenderer.send('quit-app'),
   openManualWindow: () => ipcRenderer.send('open-manual-window'),
   showAboutDialog: () => ipcRenderer.send('show-about-dialog'),
-});
+};
 
 declare global {
   interface Window {

@@ -13,5 +13,5 @@
       "module": "CommonJS"
     }
   },
-  "include": ["src"]
+  "include": ["src", "scripts/copy-snapshot.js", "scripts/create-snapshot.js", "scripts/snapshot.js"]
 }

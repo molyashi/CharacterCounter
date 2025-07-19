@@ -1,6 +1,6 @@
 {
   "name": "character-counter",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "main": "dist/main.js",
   "scripts": {
     "start": "electron .",
@@ -8,8 +8,12 @@
     "dev:electron": "wait-on dist/main.js && electronmon .",
     "dev": "npm-run-all -p dev:webpack dev:electron",
     "build:webpack": "cross-env NODE_ENV=production webpack --progress",
+    "clean": "rimraf release",
     "build:exe": "electron-builder",
-    "build": "npm run build:webpack && npm run build:exe"
+    "build": "npm run clean && npm run build:webpack && npm run build:exe",
+    "create-snapshot": "node scripts/create-snapshot.js",
+    "copy-snapshot": "node scripts/copy-snapshot.js",
+    "postinstall": "npm run create-snapshot && npm run copy-snapshot"
   },
   "keywords": [],
   "author": "molyashi",
@@ -40,7 +44,9 @@
     "typescript": "^5.8.3",
     "wait-on": "^8.0.3",
     "webpack": "^5.99.9",
-    "webpack-cli": "^6.0.1"
+    "webpack-cli": "^6.0.1",
+    "electron-link": "^0.3.0",
+    "electron-mksnapshot": "^8.0.0"
   },
   "dependencies": {
     "encoding-japanese": "^2.2.0",
@@ -49,7 +55,7 @@
     "react-router-dom": "^7.6.3"
   },
   "build": {
-    "appId": "com.yourcompany.character-counter",
+    "appId": "com.character-counter",
     "productName": "文字数カウンター",
     "files": [
       "dist/**/*",
@@ -60,11 +66,19 @@
       "output": "release"
     },
     "win": {
-      "target": "portable",
+      "target": [
+        "nsis",
+        "portable"
+      ],
       "icon": "assets/icon.png"
     },
+    "nsis": {
+      "artifactName": "CharacterCounter-Setup-${version}.${ext}",
+      "oneClick": true,
+      "allowToChangeInstallationDirectory": false
+    },
     "portable": {
-      "artifactName": "${productName}_${version}.exe"
+      "artifactName": "CharacterCounter-Portable-${version}.${ext}"
     }
   }
 }
