@@ -1,6 +1,24 @@
 {
+  "_license_notes": [
+    "Character Counter - A simple tool to count characters copied to the clipboard.",
+    "Copyright (C) 2025 molyashi",
+    "",
+    "This program is free software: you can redistribute it and/or modify",
+    "it under the terms of the GNU Affero General Public License as published",
+    "by the Free Software Foundation, either version 3 of the License, or",
+    "(at your option) any later version.",
+    "",
+    "This program is distributed in the hope that it will be useful,",
+    "but WITHOUT ANY WARRANTY; without even the implied warranty of",
+    "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the",
+    "GNU Affero General Public License for more details.",
+    "",
+    "You should have received a copy of the GNU Affero General Public License",
+    "along with this program.  If not, see <https://www.gnu.org/licenses/>."
+  ],
   "name": "character-counter",
   "version": "1.0.2",
+  "description": "A simple character counter app.",
   "main": "dist/main.js",
   "scripts": {
     "start": "electron .",
@@ -15,15 +33,17 @@
     "copy-snapshot": "node scripts/copy-snapshot.js",
     "postinstall": "npm run create-snapshot && npm run copy-snapshot"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/molyashi/character-counter.git"
+  },
   "keywords": [],
   "author": "molyashi",
-  "electronmon": {
-    "patterns": [
-      "dist/**/*"
-    ]
+  "license": "AGPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/molyashi/character-counter/issues"
   },
-  "license": "ISC",
-  "description": "A simple character counter app.",
+  "homepage": "https://github.com/molyashi/character-counter#readme",
   "devDependencies": {
     "@types/encoding-japanese": "^2.2.1",
     "@types/node": "^24.0.10",
