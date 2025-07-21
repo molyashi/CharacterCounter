@@ -25,6 +25,11 @@ export const Manual: React.FC = () => {
     };
   }, []);
 
+  const handleLinkClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    window.electronAPI.openExternalLink(event.currentTarget.href);
+  };
+
   return (
     <div className="manual-container">
       <div className="manual-content">
@@ -34,13 +39,36 @@ export const Manual: React.FC = () => {
             テキストをコピーしてペーストするか、直接テキストを打つことができます。
           </li>
           <li>
-            テキストファイルの読み込み・保存はファイルメニューから行えます。
+            テキストファイルの読み込み・保存はウィンドウ上部の「ファイル」メニューから行えます。
           </li>
           <li>
             クリップボードの内容を自動で取得したり、ウィンドウを最前面に固定することもできます。
           </li>
-          <li>バグがあれば報告していただけると幸いです。</li>
+          <li>
+            ご意見やご感想、不具合などがあれば、
+            <br />
+            <a
+              href="https://docs.google.com/forms/d/e/1FAIpQLSfXbrbkhEyqNYiUnnDb5oJNjrf1wa0N6Bz2ETr1uf_lXmBtdw/viewform"
+              onClick={handleLinkClick}
+            >
+              こちらのフォーム
+            </a>
+            に送信して頂けると幸いです。
+          </li>
         </ul>
+        <p>
+          詳細な使い方は
+          <a
+            href="https://note.com/molyashi/n/n354603f861c7#7d6b7e80-2aec-4379-b166-e0e58805cb2e"
+            onClick={handleLinkClick}
+          >
+            こちらの記事
+          </a>
+          を参照して下さい
+          <br />
+          <br />
+          (リンクは外部ブラウザで開きます)
+        </p>
       </div>
     </div>
   );

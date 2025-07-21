@@ -16,7 +16,15 @@
 
 import path from "node:path";
 import fs from "node:fs";
-import { BrowserWindow, app, ipcMain, clipboard, Menu, dialog } from "electron";
+import {
+  BrowserWindow,
+  app,
+  ipcMain,
+  clipboard,
+  Menu,
+  dialog,
+  shell,
+} from "electron";
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -60,13 +68,14 @@ async function handleSaveFile(content: string) {
 }
 
 async function handleSaveFileFromNativeMenu() {
-    if (!mainWindow) return;
-    const content = await mainWindow.webContents.executeJavaScript(
-      'document.getElementById("main-textarea")?.value', true
-    );
-    if (typeof content === 'string') {
-      await handleSaveFile(content);
-    }
+  if (!mainWindow) return;
+  const content = await mainWindow.webContents.executeJavaScript(
+    'document.getElementById("main-textarea")?.value',
+    true,
+  );
+  if (typeof content === "string") {
+    await handleSaveFile(content);
+  }
 }
 
 function openManualWindow() {
@@ -76,7 +85,7 @@ function openManualWindow() {
     height: 400,
     title: "使用方法",
     parent: mainWindow,
-    modal: false,
+    modal: true,
     frame: true,
     resizable: false,
     maximizable: false,
@@ -104,27 +113,36 @@ function showAboutDialog() {
   });
 }
 
-const macMenuTemplate: (Electron.MenuItemConstructorOptions | Electron.MenuItem)[] = [
-    {
-        label: app.getName(),
-        submenu: [
-            { role: 'quit', label: '文字数カウンターを終了' }
-        ]
-    },
-    {
-        label: "ファイル",
-        submenu: [
-            { label: ".txtを読み込む", click: () => handleOpenFile(), accelerator: 'CmdOrCtrl+O' },
-            { label: ".txtとして保存", click: () => handleSaveFileFromNativeMenu(), accelerator: 'CmdOrCtrl+S' }
-        ],
-    },
-    {
-        label: "ヘルプ",
-        submenu: [
-            { label: "使用方法", click: () => openManualWindow() },
-            { label: 'バージョン情報', click: () => showAboutDialog() }
-        ],
-    },
+const macMenuTemplate: (
+  | Electron.MenuItemConstructorOptions
+  | Electron.MenuItem
+)[] = [
+  {
+    label: app.getName(),
+    submenu: [{ role: "quit", label: "文字数カウンターを終了" }],
+  },
+  {
+    label: "ファイル",
+    submenu: [
+      {
+        label: ".txtを読み込む",
+        click: () => handleOpenFile(),
+        accelerator: "CmdOrCtrl+O",
+      },
+      {
+        label: ".txtとして保存",
+        click: () => handleSaveFileFromNativeMenu(),
+        accelerator: "CmdOrCtrl+S",
+      },
+    ],
+  },
+  {
+    label: "ヘルプ",
+    submenu: [
+      { label: "使用方法", click: () => openManualWindow() },
+      { label: "バージョン情報", click: () => showAboutDialog() },
+    ],
+  },
 ];
 
 function createWindow() {
@@ -168,11 +186,10 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
 
-  mainWindow.on('closed', () => {
+  mainWindow.on("closed", () => {
     mainWindow = null;
   });
 }
-
 
 app.whenReady().then(() => {
   createWindow();
@@ -192,12 +209,18 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle("open-file", handleOpenFile);
-  ipcMain.handle("save-file", (event, content: string) => handleSaveFile(content));
+  ipcMain.handle("save-file", (event, content: string) =>
+    handleSaveFile(content),
+  );
 
   ipcMain.on("open-manual-window", openManualWindow);
   ipcMain.on("show-about-dialog", showAboutDialog);
 
-  app.on('activate', () => {
+  ipcMain.on("open-external-link", (event, url: string) => {
+    shell.openExternal(url);
+  });
+
+  app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
     }
