@@ -18,6 +18,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import "./MenuBar.css";
 
 interface MenuBarProps {
+  platform: string;
   onOpenFile: () => void;
   onSaveFile: () => void;
   onExit: () => void;
@@ -27,6 +28,7 @@ interface MenuBarProps {
 const MENU_ORDER = ["file", "help"];
 
 export const MenuBar: React.FC<MenuBarProps> = ({
+  platform,
   onOpenFile,
   onSaveFile,
   onExit,
@@ -65,6 +67,8 @@ export const MenuBar: React.FC<MenuBarProps> = ({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (platform === "darwin") return;
+
       if (e.key === "Alt") {
         e.preventDefault();
         if (!isAltPressed) {
@@ -166,6 +170,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
+      if (platform === "darwin") return;
       if (e.key === "Alt") {
         if (isAltPressed && !altActionTaken.current) {
           setFocusedBarItem(MENU_ORDER[0]);
@@ -205,76 +210,83 @@ export const MenuBar: React.FC<MenuBarProps> = ({
     selectedDropdownIndex,
     isAltPressed,
     resetMenuState,
+    platform,
   ]);
 
   return (
-    <nav className="menu-bar" ref={menuBarRef}>
-      {MENU_ORDER.map((menuName) => {
-        const menuItems = {
-          file: [".txtを読み込む", ".txtとして保存", "終了"],
-          help: ["使用方法", "バージョン情報"],
-        };
+    <nav
+      className={`menu-bar ${platform === "darwin" ? "platform-macos" : ""}`}
+      ref={menuBarRef}
+    >
+      {platform === "darwin" && <div className="traffic-light-spacer" />}
 
-        return (
-          <div
-            key={menuName}
-            className="menu-item-container"
-            onMouseEnter={() => openMenu && setOpenMenu(menuName)}
-            onClick={() => {
-              if (openMenu === menuName) {
-                resetMenuState();
-              } else {
-                setOpenMenu(menuName);
-                setFocusedBarItem(menuName);
-                setSelectedDropdownIndex(null);
-                setIsAltPressed(false);
-              }
-            }}
-          >
+      {platform !== "darwin" &&
+        MENU_ORDER.map((menuName) => {
+          const menuItems = {
+            file: [".txtを読み込む", ".txtとして保存", "終了"],
+            help: ["使用方法", "バージョン情報"],
+          };
+
+          return (
             <div
-              ref={(el) => {
-                barItemRefs.current[menuName] = el;
+              key={menuName}
+              className="menu-item-container"
+              onMouseEnter={() => openMenu && setOpenMenu(menuName)}
+              onClick={() => {
+                if (openMenu === menuName) {
+                  resetMenuState();
+                } else {
+                  setOpenMenu(menuName);
+                  setFocusedBarItem(menuName);
+                  setSelectedDropdownIndex(null);
+                  setIsAltPressed(false);
+                }
               }}
-              className={`menu-item ${
-                focusedBarItem === menuName && !openMenu ? "focused" : ""
-              }`}
-              tabIndex={-1}
             >
-              {menuName === "file" ? "ファイル" : "ヘルプ"}(
-              <span className={isAltPressed ? "mnemonic-visible" : ""}>
-                {menuName === "file" ? "F" : "H"}
-              </span>
-              )
-            </div>
-            {openMenu === menuName && (
-              <div className="dropdown-menu">
-                {menuItems[menuName as keyof typeof menuItems].map(
-                  (item, index) => (
-                    <div
-                      key={item}
-                      ref={(el) => {
-                        dropdownItemRefs.current[menuName][index] = el;
-                      }}
-                      className={`dropdown-item ${
-                        selectedDropdownIndex === index ? "selected" : ""
-                      }`}
-                      onMouseDown={() => {
-                        const action = menuActions[menuName]?.[index];
-                        if (action) {
-                          action();
-                          resetMenuState();
-                        }
-                      }}
-                    >
-                      {item}
-                    </div>
-                  )
-                )}
+              <div
+                ref={(el) => {
+                  barItemRefs.current[menuName] = el;
+                }}
+                className={`menu-item ${
+                  focusedBarItem === menuName && !openMenu ? "focused" : ""
+                }`}
+                tabIndex={-1}
+              >
+                {menuName === "file" ? "ファイル" : "ヘルプ"}(
+                <span className={isAltPressed ? "mnemonic-visible" : ""}>
+                  {menuName === "file" ? "F" : "H"}
+                </span>
+                )
               </div>
-            )}
-          </div>
-        );
-      })}
+              {openMenu === menuName && (
+                <div className="dropdown-menu">
+                  {menuItems[menuName as keyof typeof menuItems].map(
+                    (item, index) => (
+                      <div
+                        key={item}
+                        ref={(el) => {
+                          dropdownItemRefs.current[menuName][index] = el;
+                        }}
+                        className={`dropdown-item ${
+                          selectedDropdownIndex === index ? "selected" : ""
+                        }`}
+                        onMouseDown={() => {
+                          const action = menuActions[menuName]?.[index];
+                          if (action) {
+                            action();
+                            resetMenuState();
+                          }
+                        }}
+                      >
+                        {item}
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
     </nav>
   );
 };

@@ -1,19 +1,3 @@
-// Character Counter - A simple tool to count characters copied to the clipboard.
-// Copyright (C) 2025 molyashi
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
 import { useState, useEffect, useRef } from "react";
 import { HashRouter, Routes, Route } from "react-router-dom";
 import "./App.css";
@@ -35,6 +19,7 @@ interface Counts {
 }
 
 export const App = () => {
+  const [platform, setPlatform] = useState<string>("");
   const [text, setText] = useState<string>("");
   const [counts, setCounts] = useState<Counts>({
     withSpaces: 0,
@@ -53,6 +38,24 @@ export const App = () => {
   const lastClipboardText = useRef<string>("");
   const [copyFeedback, setCopyFeedback] = useState<string>("");
   const [isDetailsVisible, setIsDetailsVisible] = useState<boolean>(false);
+
+  useEffect(() => {
+    const fetchPlatform = async () => {
+      const plat = await window.electronAPI.getPlatform();
+      setPlatform(plat);
+    };
+    fetchPlatform();
+
+    const cleanup = window.electronAPI.onFileOpened((content) => {
+      if (content !== null) {
+        setText(content);
+      }
+    });
+
+    return () => {
+      cleanup();
+    };
+  }, []);
 
   useEffect(() => {
     const textAsArray = Array.from(text);
@@ -93,13 +96,13 @@ export const App = () => {
   }, [text]);
 
   useEffect(() => {
-    window.electronAPI?.setAlwaysOnTop(isAlwaysOnTop);
+    window.electronAPI.setAlwaysOnTop(isAlwaysOnTop);
   }, [isAlwaysOnTop]);
 
   useEffect(() => {
     if (!isAutoClipboard) return;
     const intervalId = setInterval(async () => {
-      const clipboardText = await window.electronAPI?.readClipboard();
+      const clipboardText = await window.electronAPI.readClipboard();
       if (clipboardText && clipboardText !== lastClipboardText.current) {
         lastClipboardText.current = clipboardText;
         setText(clipboardText);
@@ -130,23 +133,15 @@ export const App = () => {
   };
 
   const handleOpenFile = async () => {
-    const fileContent = await window.electronAPI?.openFile();
+    const fileContent = await window.electronAPI.openFile();
     if (fileContent !== null && fileContent !== undefined) {
       setText(fileContent);
     }
   };
 
-  interface SaveFileResult {
-    success?: boolean;
-    path?: string;
-    error?: string;
-  }
-
   const handleSaveFile = async () => {
     if (!text) return;
-    const result = (await window.electronAPI?.saveFile(text)) as
-      | SaveFileResult
-      | undefined;
+    const result = await window.electronAPI.saveFile(text);
     if (result?.success) {
       setCopyFeedback(`ファイルを保存しました: ${result.path}`);
       setTimeout(() => setCopyFeedback(""), 3000);
@@ -165,7 +160,7 @@ export const App = () => {
   };
 
   const handleExit = () => {
-    window.electronAPI?.quitApp();
+    window.electronAPI.quitApp();
   };
 
   return (
@@ -176,10 +171,11 @@ export const App = () => {
           element={
             <div className="container">
               <MenuBar
+                platform={platform}
                 onOpenFile={handleOpenFile}
                 onSaveFile={handleSaveFile}
                 onExit={handleExit}
-                onOpenManual={() => window.electronAPI?.openManualWindow?.()}
+                onOpenManual={() => window.electronAPI.openManualWindow()}
               />
               <div className="main-content">
                 <div className="controls">
@@ -213,6 +209,7 @@ export const App = () => {
                 </div>
 
                 <textarea
+                  id="main-textarea"
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                   onFocus={handleTextAreaFocus}
@@ -344,12 +341,7 @@ export const App = () => {
             </div>
           }
         />
-        <Route
-          path="/manual"
-          element={
-            <Manual onClose={() => window.close()} isStandalone={true} />
-          }
-        />
+        <Route path="/manual" element={<Manual />} />
       </Routes>
     </HashRouter>
   );

@@ -23,9 +23,19 @@
   color: #333348;
   padding: 0 140px 0 0;
   height: 37px;
-  align-items: center;
   -webkit-app-region: drag;
   flex-shrink: 0;
+}
+
+.menu-bar.platform-macos {
+  padding: 0;
+  justify-content: flex-start;
+}
+
+.traffic-light-spacer {
+  width: 80px;
+  height: 100%;
+  -webkit-app-region: no-drag;
 }
 
 .menu-item {

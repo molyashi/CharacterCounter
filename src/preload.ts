@@ -14,9 +14,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer } from 'electron';
 
-window.electronAPI = {
+contextBridge.exposeInMainWorld('electronAPI', {
   setAlwaysOnTop: (isAlwaysOnTop: boolean) => ipcRenderer.send('set-always-on-top', isAlwaysOnTop),
   readClipboard: () => ipcRenderer.invoke('read-clipboard'),
   openFile: () => ipcRenderer.invoke('open-file'),
@@ -24,18 +24,12 @@ window.electronAPI = {
   quitApp: () => ipcRenderer.send('quit-app'),
   openManualWindow: () => ipcRenderer.send('open-manual-window'),
   showAboutDialog: () => ipcRenderer.send('show-about-dialog'),
-};
-
-declare global {
-  interface Window {
-    electronAPI: {
-      saveFile(text: string): unknown;
-      setAlwaysOnTop: (isAlwaysOnTop: boolean) => void;
-      readClipboard: () => Promise<string>;
-      openFile: () => Promise<string | null>;
-      quitApp: () => void;
-      openManualWindow?: () => void;
-      showAboutDialog?: () => void;
+  getPlatform: () => ipcRenderer.invoke('get-platform'),
+  onFileOpened: (callback: (content: string) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, value: string) => callback(value);
+    ipcRenderer.on('file-opened', handler);
+    return () => {
+      ipcRenderer.removeListener('file-opened', handler);
     };
-  }
-}
+  },
+});

@@ -17,15 +17,9 @@
 import React, { useEffect } from "react";
 import "./Manual.css";
 
-interface ManualProps {
-  onClose: () => void;
-  isStandalone?: boolean;
-}
-
-export const Manual: React.FC<ManualProps> = ({ onClose }) => {
+export const Manual: React.FC = () => {
   useEffect(() => {
     document.body.classList.add("manual-body-style");
-
     return () => {
       document.body.classList.remove("manual-body-style");
     };
@@ -33,10 +27,6 @@ export const Manual: React.FC<ManualProps> = ({ onClose }) => {
 
   return (
     <div className="manual-container">
-      <div className="manual-title-bar">使用方法</div>
-      <button className="manual-close-btn" onClick={onClose}>
-        ✕
-      </button>
       <div className="manual-content">
         <h2>使用方法</h2>
         <ul>
