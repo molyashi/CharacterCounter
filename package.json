@@ -35,7 +35,7 @@
     "url": "https://github.com/molyashi/character-counter.git"
   },
   "keywords": [],
-  "author": "molyashi",
+  "author": "molyashi <123541667+molyashi@users.noreply.github.com>",
   "license": "AGPL-3.0-or-later",
   "bugs": {
     "url": "https://github.com/molyashi/character-counter/issues"
@@ -96,7 +96,7 @@
     "linux": {
       "target": [
         "deb",
-        "AppImage"
+        "rpm"
       ],
       "icon": "assets/icon.png",
       "category": "Utility"

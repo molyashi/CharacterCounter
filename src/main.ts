@@ -157,7 +157,6 @@ const macMenuTemplate: (
 
 function createWindow() {
   const isMac = process.platform === "darwin";
-  const isLinux = process.platform === "linux";
 
   const browserWindowOptions: Electron.BrowserWindowConstructorOptions = {
     width: 800,
@@ -173,8 +172,6 @@ function createWindow() {
   if (isMac) {
     browserWindowOptions.titleBarStyle = "hidden";
     browserWindowOptions.trafficLightPosition = { x: 15, y: 11 };
-  } else if (isLinux) {
-    browserWindowOptions.frame = true;
   } else {
     browserWindowOptions.frame = false;
     browserWindowOptions.titleBarStyle = "hidden";
