@@ -27,6 +27,7 @@ import {
 } from "electron";
 
 let mainWindow: BrowserWindow | null = null;
+let manualWindow: BrowserWindow | null = null;
 
 async function handleOpenFile() {
   if (!mainWindow) return null;
@@ -79,13 +80,17 @@ async function handleSaveFileFromNativeMenu() {
 }
 
 function openManualWindow() {
+  if (manualWindow) {
+    manualWindow.focus();
+    return;
+  }
   if (!mainWindow) return;
-  const manualWindow = new BrowserWindow({
+
+  manualWindow = new BrowserWindow({
     width: 480,
     height: 400,
     title: "使用方法",
     parent: mainWindow,
-    modal: true,
     frame: true,
     resizable: false,
     maximizable: false,
@@ -96,9 +101,14 @@ function openManualWindow() {
       contextIsolation: true,
     },
   });
+
   manualWindow.setMenu(null);
   manualWindow.loadFile(path.join(__dirname, "../dist/index.html"), {
     hash: "/manual",
+  });
+
+  manualWindow.on("closed", () => {
+    manualWindow = null;
   });
 }
 
