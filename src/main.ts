@@ -25,9 +25,36 @@ import {
   dialog,
   shell,
 } from "electron";
+import { autoUpdater } from "electron-updater";
 
 let mainWindow: BrowserWindow | null = null;
 let manualWindow: BrowserWindow | null = null;
+
+const settingsPath = path.join(app.getPath("userData"), "CharacterCounterData.json");
+
+interface AppSettings {
+  theme: "light" | "dark";
+}
+
+function readSettings(): AppSettings {
+  try {
+    if (fs.existsSync(settingsPath)) {
+      const data = fs.readFileSync(settingsPath, "utf-8");
+      return JSON.parse(data);
+    }
+  } catch (error) {
+    console.error("Failed to read settings, using defaults:", error);
+  }
+  return { theme: "light" };
+}
+
+function saveSettings(settings: AppSettings) {
+  try {
+    fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+  } catch (error) {
+    console.error("Failed to save settings:", error);
+  }
+}
 
 async function handleOpenFile() {
   if (!mainWindow) return null;
@@ -72,7 +99,7 @@ async function handleSaveFileFromNativeMenu() {
   if (!mainWindow) return;
   const content = await mainWindow.webContents.executeJavaScript(
     'document.getElementById("main-textarea")?.value',
-    true,
+    true
   );
   if (typeof content === "string") {
     await handleSaveFile(content);
@@ -94,7 +121,7 @@ function openManualWindow() {
     frame: true,
     resizable: false,
     maximizable: false,
-    minimizable: false,
+    minimizable: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       nodeIntegration: false,
@@ -123,44 +150,161 @@ function showAboutDialog() {
   });
 }
 
-const macMenuTemplate: (
-  | Electron.MenuItemConstructorOptions
-  | Electron.MenuItem
-)[] = [
-  {
-    label: app.getName(),
-    submenu: [{ role: "quit", label: "文字数カウンターを終了" }],
-  },
-  {
-    label: "ファイル",
-    submenu: [
-      {
-        label: ".txtを読み込む",
-        click: () => handleOpenFile(),
-        accelerator: "CmdOrCtrl+O",
-      },
-      {
-        label: ".txtとして保存",
-        click: () => handleSaveFileFromNativeMenu(),
-        accelerator: "CmdOrCtrl+S",
-      },
-    ],
-  },
-  {
-    label: "ヘルプ",
-    submenu: [
-      { label: "使用方法", click: () => openManualWindow() },
-      { label: "バージョン情報", click: () => showAboutDialog() },
-    ],
-  },
-];
+function manualCheckForUpdates() {
+  autoUpdater.once("update-not-available", () => {
+    dialog.showMessageBox({
+      title: "更新の確認",
+      message: "現在入手可能な更新はありません。",
+    });
+  });
+
+  autoUpdater.once("error", (err) => {
+    dialog.showMessageBox({
+      title: "更新エラー",
+      type: "error",
+      message: `更新の確認中にエラーが発生しました: ${err.message}`,
+    });
+  });
+
+  autoUpdater.once("update-downloaded", (info) => {
+    dialog
+      .showMessageBox({
+        title: "アップデートの準備ができました",
+        message: `バージョン ${info.version} のインストール準備ができました。アプリケーションを再起動してアップデートを適用します。`,
+        buttons: ["再起動", "後で"],
+      })
+      .then((result) => {
+        if (result.response === 0) {
+          autoUpdater.quitAndInstall();
+        }
+      });
+  });
+
+  autoUpdater.checkForUpdates();
+}
+
+function buildMenu() {
+  const menuTemplate: (
+    | Electron.MenuItemConstructorOptions
+    | Electron.MenuItem
+  )[] = [
+    {
+      label: app.getName(),
+      submenu: [{ role: "quit", label: "文字数カウンターを終了" }],
+    },
+    {
+      label: "ファイル",
+      submenu: [
+        {
+          label: ".txtを読み込む",
+          click: () => handleOpenFile(),
+          accelerator: "CmdOrCtrl+O",
+        },
+        {
+          label: ".txtとして保存",
+          click: () => handleSaveFileFromNativeMenu(),
+          accelerator: "CmdOrCtrl+S",
+        },
+      ],
+    },
+    {
+      label: "ツール",
+      submenu: [
+        {
+          label: "テキスト全体をコピー",
+          accelerator: "CmdOrCtrl+Shift+C",
+          click: () => {
+            mainWindow?.webContents.send("menu-action", "copy-text");
+          },
+        },
+        {
+          label: "テキスト全体をクリア",
+          accelerator: "CmdOrCtrl+Shift+D",
+          click: () => {
+            mainWindow?.webContents.send("menu-action", "clear-text");
+          },
+        },
+        {
+          id: "toggle-auto-clipboard",
+          label: "クリップボード自動取得",
+          type: "checkbox",
+          accelerator: "CmdOrCtrl+Shift+B",
+          click: (menuItem) => {
+            mainWindow?.webContents.send(
+              "menu-action",
+              "toggle-auto-clipboard",
+              menuItem.checked
+            );
+          },
+        },
+        {
+          id: "toggle-always-on-top",
+          label: "常に手前に表示",
+          type: "checkbox",
+          accelerator: "CmdOrCtrl+Shift+T",
+          click: (menuItem) => {
+            mainWindow?.webContents.send(
+              "menu-action",
+              "toggle-always-on-top",
+              menuItem.checked
+            );
+          },
+        },
+        {
+          id: "toggle-compact-mode",
+          label: "コンパクトモード",
+          type: "checkbox",
+          accelerator: "CmdOrCtrl+Shift+M",
+          click: (menuItem) => {
+            mainWindow?.webContents.send(
+              "menu-action",
+              "toggle-compact-mode",
+              menuItem.checked
+            );
+          },
+        },
+        { type: "separator" },
+        {
+          label: "テーマを切り替え",
+          click: () => {
+            mainWindow?.webContents.send("menu-action", "toggle-theme");
+          },
+        },
+      ],
+    },
+    {
+      label: "ヘルプ",
+      submenu: [
+        { label: "使用方法", click: () => openManualWindow() },
+        { label: "更新を確認...", click: () => manualCheckForUpdates() },
+        { label: "バージョン情報", click: () => showAboutDialog() },
+      ],
+    },
+  ];
+
+  const menu = Menu.buildFromTemplate(menuTemplate);
+  Menu.setApplicationMenu(menu);
+}
+
+ipcMain.on("update-menu-state", (event, key: string, value: boolean) => {
+  const menu = Menu.getApplicationMenu();
+  if (menu) {
+    const menuItem = menu.getMenuItemById(key);
+    if (menuItem) {
+      menuItem.checked = value;
+    }
+  }
+});
 
 function createWindow() {
   const isMac = process.platform === "darwin";
+  const settings = readSettings();
 
   const browserWindowOptions: Electron.BrowserWindowConstructorOptions = {
     width: 800,
     height: 800,
+    minWidth: 540,
+    minHeight: 600,
     icon: path.join(__dirname, "../assets/icon.png"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -175,23 +319,24 @@ function createWindow() {
   } else {
     browserWindowOptions.frame = false;
     browserWindowOptions.titleBarStyle = "hidden";
-    browserWindowOptions.titleBarOverlay = {
-      color: "#ededff",
-      symbolColor: "#60606a",
-      height: 36,
+    const titleBarOverlay = {
+      light: { color: "#ededff", symbolColor: "#60606a", height: 36 },
+      dark: { color: "#2d2d2d", symbolColor: "#cccccc", height: 36 },
     };
+    browserWindowOptions.titleBarOverlay = titleBarOverlay[settings.theme];
   }
 
   mainWindow = new BrowserWindow(browserWindowOptions);
 
   if (isMac) {
-    const menu = Menu.buildFromTemplate(macMenuTemplate);
-    Menu.setApplicationMenu(menu);
+    buildMenu();
   } else {
     mainWindow.setMenu(null);
   }
 
   mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
+
+  //mainWindow.webContents.openDevTools();
 
   mainWindow.on("closed", () => {
     mainWindow = null;
@@ -201,10 +346,48 @@ function createWindow() {
 app.whenReady().then(() => {
   createWindow();
 
+  autoUpdater.checkForUpdatesAndNotify();
+
+  ipcMain.on(
+  "set-window-size",
+  (event, width: number, height: number, resizable: boolean) => {
+    if (mainWindow) {
+      if (mainWindow.isMaximized()) {
+        mainWindow.unmaximize();
+      }
+      mainWindow.setResizable(true);
+      mainWindow.setSize(width, height, true);
+      mainWindow.setResizable(resizable);
+    }
+  }
+);
+
+  ipcMain.on("set-minimum-size", (event, width: number, height: number) => {
+    mainWindow?.setMinimumSize(width, height);
+  });
+
+  ipcMain.on("set-maximum-size", (event, width: number, height: number) => {
+    mainWindow?.setMaximumSize(width, height);
+  });
+
+  ipcMain.on("set-maximizable", (event, maximizable: boolean) => {
+    mainWindow?.setMaximizable(maximizable);
+  });
+
   ipcMain.handle("get-platform", () => process.platform);
 
   ipcMain.on("set-always-on-top", (event, isAlwaysOnTop) => {
     mainWindow?.setAlwaysOnTop(isAlwaysOnTop);
+  });
+
+  ipcMain.on("set-native-theme", (event, theme: "light" | "dark") => {
+    if (process.platform !== "darwin") {
+      const titleBarOverlay = {
+        light: { color: "#ededff", symbolColor: "#60606a", height: 36 },
+        dark: { color: "#2d2d2d", symbolColor: "#cccccc", height: 36 },
+      };
+      mainWindow?.setTitleBarOverlay(titleBarOverlay[theme]);
+    }
   });
 
   ipcMain.handle("read-clipboard", () => {
@@ -217,7 +400,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle("open-file", handleOpenFile);
   ipcMain.handle("save-file", (event, content: string) =>
-    handleSaveFile(content),
+    handleSaveFile(content)
   );
 
   ipcMain.on("open-manual-window", openManualWindow);
@@ -225,6 +408,20 @@ app.whenReady().then(() => {
 
   ipcMain.on("open-external-link", (event, url: string) => {
     shell.openExternal(url);
+  });
+
+  ipcMain.on("check-for-updates", () => {
+    manualCheckForUpdates();
+  });
+
+  ipcMain.handle("get-initial-theme", () => {
+    return readSettings().theme;
+  });
+
+  ipcMain.on("save-theme", (event, theme: "light" | "dark") => {
+    const settings = readSettings();
+    settings.theme = theme;
+    saveSettings(settings);
   });
 
   app.on("activate", () => {

@@ -14,12 +14,24 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { HashRouter, Routes, Route } from "react-router-dom";
 import "./App.css";
 import { MenuBar } from "./MenuBar";
 import { Manual } from "./Manual";
 import Encoding from "encoding-japanese";
+import {
+  CopyIcon,
+  MoonIcon,
+  SunIcon,
+  ClipboardCopyIcon,
+  TrashIcon,
+  ClipboardIcon,
+  PinIcon,
+  CompactIcon,
+  ChevronUpIcon,
+  ChevronDownIcon,
+} from "./Icon";
 
 interface Counts {
   withSpaces: number;
@@ -51,9 +63,95 @@ export const App = () => {
   });
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState<boolean>(false);
   const [isAutoClipboard, setIsAutoClipboard] = useState<boolean>(true);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
   const lastClipboardText = useRef<string>("");
   const [copyFeedback, setCopyFeedback] = useState<string>("");
   const [isDetailsVisible, setIsDetailsVisible] = useState<boolean>(false);
+  const [isCompactMode, setIsCompactMode] = useState<boolean>(false);
+  const preCompactState = useRef<{
+    isAutoClipboard: boolean;
+    isAlwaysOnTop: boolean;
+  }>({
+    isAutoClipboard: true,
+    isAlwaysOnTop: false,
+  });
+
+  useEffect(() => {
+    const fetchInitialTheme = async () => {
+      const initialTheme = await window.electronAPI.getInitialTheme();
+      if (initialTheme) {
+        setTheme(initialTheme);
+      }
+    };
+    fetchInitialTheme();
+  }, []);
+
+  const toggleTheme = useCallback(() => {
+    setTheme((prevTheme) => (prevTheme === "light" ? "dark" : "light"));
+  }, []);
+
+  useEffect(() => {
+    document.body.className = theme === "dark" ? "dark-theme" : "";
+    window.electronAPI.setNativeTheme(theme);
+    window.electronAPI.saveTheme(theme);
+  }, [theme]);
+
+  const handleCopyText = useCallback(() => {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopyFeedback("テキスト全体をコピーしました");
+      setTimeout(() => setCopyFeedback(""), 2000);
+    });
+  }, [text]);
+
+  const handleClearText = useCallback(() => {
+    if (text) {
+      setText("");
+      setCopyFeedback("テキストボックスをクリアしました");
+      setTimeout(() => setCopyFeedback(""), 2000);
+    }
+  }, [text]);
+
+  const handleToggleAutoClipboard = useCallback(() => {
+    setIsAutoClipboard((prev) => !prev);
+  }, []);
+
+  const handleToggleAlwaysOnTop = useCallback(() => {
+    setIsAlwaysOnTop((prev) => !prev);
+  }, []);
+
+  const handleToggleCompactMode = useCallback(() => {
+    setIsCompactMode((prev) => !prev);
+  }, []);
+
+  const COMPACT_WIDTH = 420;
+  const COMPACT_HEIGHT = 340;
+  const NORMAL_MIN_WIDTH = 540;
+  const NORMAL_MIN_HEIGHT = 600;
+
+  useEffect(() => {
+    if (isCompactMode) {
+      preCompactState.current = {
+        isAutoClipboard,
+        isAlwaysOnTop,
+      };
+      setIsAutoClipboard(true);
+      setIsAlwaysOnTop(true);
+
+      window.electronAPI.setMaximizable(false);
+      window.electronAPI.setMinimumSize(COMPACT_WIDTH, COMPACT_HEIGHT);
+      window.electronAPI.setMaximumSize(COMPACT_WIDTH, 585);
+      window.electronAPI.setWindowSize(COMPACT_WIDTH, COMPACT_HEIGHT, true);
+    } else {
+      setIsAutoClipboard(preCompactState.current.isAutoClipboard);
+      setIsAlwaysOnTop(preCompactState.current.isAlwaysOnTop);
+      window.electronAPI.setMaximizable(true);
+
+      window.electronAPI.setMinimumSize(NORMAL_MIN_WIDTH, NORMAL_MIN_HEIGHT);
+      window.electronAPI.setMaximumSize(10000, 10000);
+      window.electronAPI.setWindowSize(800, 800, true);
+    }
+  }, [isCompactMode]);
 
   useEffect(() => {
     const fetchPlatform = async () => {
@@ -62,16 +160,132 @@ export const App = () => {
     };
     fetchPlatform();
 
-    const cleanup = window.electronAPI.onFileOpened((content) => {
+    const cleanupFileOpened = window.electronAPI.onFileOpened((content) => {
       if (content !== null) {
         setText(content);
       }
     });
 
+    const cleanupMenuAction = window.electronAPI.onMenuAction(
+      (action, checked) => {
+        switch (action) {
+          case "copy-text":
+            handleCopyText();
+            break;
+          case "clear-text":
+            handleClearText();
+            break;
+          case "toggle-auto-clipboard":
+            setIsAutoClipboard(checked ?? ((prev) => !prev));
+            break;
+          case "toggle-always-on-top":
+            setIsAlwaysOnTop(checked ?? ((prev) => !prev));
+            break;
+          case "toggle-compact-mode":
+            handleToggleCompactMode();
+            break;
+          case "toggle-theme":
+            toggleTheme();
+            break;
+        }
+      }
+    );
+
     return () => {
-      cleanup();
+      cleanupFileOpened();
+      cleanupMenuAction();
     };
+  }, [
+    handleCopyText,
+    handleClearText,
+    handleToggleAutoClipboard,
+    handleToggleAlwaysOnTop,
+    handleToggleCompactMode,
+    toggleTheme,
+  ]);
+
+  const handleOpenFile = useCallback(async () => {
+    const fileContent = await window.electronAPI.openFile();
+    if (fileContent !== null && fileContent !== undefined) {
+      setText(fileContent);
+    }
   }, []);
+
+  const handleSaveFile = useCallback(async () => {
+    if (!text) return;
+    const result = await window.electronAPI.saveFile(text);
+    if (result?.success) {
+      setCopyFeedback(`ファイルを保存しました: ${result.path}`);
+      setTimeout(() => setCopyFeedback(""), 3000);
+    } else if (result?.error && result.error !== "Save dialog was canceled.") {
+      setCopyFeedback(`エラー: ${result.error}`);
+      setTimeout(() => setCopyFeedback(""), 3000);
+    }
+  }, [text]);
+
+  useEffect(() => {
+    window.electronAPI.updateMenuState("toggle-compact-mode", isCompactMode);
+  }, [isCompactMode]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const modifier = platform === "darwin" ? e.metaKey : e.ctrlKey;
+
+      if (modifier && e.shiftKey) {
+        switch (e.key.toLowerCase()) {
+          case "c":
+            e.preventDefault();
+            handleCopyText();
+            break;
+          case "d":
+            e.preventDefault();
+            handleClearText();
+            break;
+          case "b":
+            e.preventDefault();
+            handleToggleAutoClipboard();
+            break;
+          case "t":
+            e.preventDefault();
+            handleToggleAlwaysOnTop();
+            break;
+          case "m":
+            e.preventDefault();
+            handleToggleCompactMode();
+            break;
+        }
+        return;
+      }
+
+      if (modifier && !e.shiftKey) {
+        if (platform === "darwin") return;
+        switch (e.key.toLowerCase()) {
+          case "o":
+            e.preventDefault();
+            handleOpenFile();
+            break;
+          case "s":
+            e.preventDefault();
+            handleSaveFile();
+            break;
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [
+    platform,
+    handleOpenFile,
+    handleSaveFile,
+    handleCopyText,
+    handleClearText,
+    handleToggleAutoClipboard,
+    handleToggleAlwaysOnTop,
+    handleToggleCompactMode,
+  ]);
 
   useEffect(() => {
     const textAsArray = Array.from(text);
@@ -113,9 +327,14 @@ export const App = () => {
 
   useEffect(() => {
     window.electronAPI.setAlwaysOnTop(isAlwaysOnTop);
+    window.electronAPI.updateMenuState("toggle-always-on-top", isAlwaysOnTop);
   }, [isAlwaysOnTop]);
 
   useEffect(() => {
+    window.electronAPI.updateMenuState(
+      "toggle-auto-clipboard",
+      isAutoClipboard
+    );
     if (!isAutoClipboard) return;
     const intervalId = setInterval(async () => {
       const clipboardText = await window.electronAPI.readClipboard();
@@ -140,43 +359,12 @@ export const App = () => {
     });
   };
 
-  const handleCopyText = () => {
-    if (!text) return;
-    navigator.clipboard.writeText(text).then(() => {
-      setCopyFeedback("テキスト全体をコピーしました");
-      setTimeout(() => setCopyFeedback(""), 2000);
-    });
-  };
-
-  const handleOpenFile = async () => {
-    const fileContent = await window.electronAPI.openFile();
-    if (fileContent !== null && fileContent !== undefined) {
-      setText(fileContent);
-    }
-  };
-
-  const handleSaveFile = async () => {
-    if (!text) return;
-    const result = await window.electronAPI.saveFile(text);
-    if (result?.success) {
-      setCopyFeedback(`ファイルを保存しました: ${result.path}`);
-      setTimeout(() => setCopyFeedback(""), 3000);
-    } else if (result?.error && result.error !== "Save dialog was canceled.") {
-      setCopyFeedback(`エラー: ${result.error}`);
-      setTimeout(() => setCopyFeedback(""), 3000);
-    }
-  };
-
-  const handleClearText = () => {
-    if (text) {
-      setText("");
-      setCopyFeedback("テキストボックスをクリアしました");
-      setTimeout(() => setCopyFeedback(""), 2000);
-    }
-  };
-
   const handleExit = () => {
     window.electronAPI.quitApp();
+  };
+
+  const handleCheckForUpdates = () => {
+    window.electronAPI.checkForUpdates();
   };
 
   return (
@@ -185,94 +373,133 @@ export const App = () => {
         <Route
           path="/"
           element={
-            <div className="container">
+            <div className={`container${isCompactMode ? " compact" : ""}`}>
               <MenuBar
                 platform={platform}
                 onOpenFile={handleOpenFile}
                 onSaveFile={handleSaveFile}
                 onExit={handleExit}
                 onOpenManual={() => window.electronAPI.openManualWindow()}
+                onCheckForUpdates={handleCheckForUpdates}
+                onCopyText={handleCopyText}
+                onClearText={handleClearText}
+                onToggleAutoClipboard={handleToggleAutoClipboard}
+                onToggleAlwaysOnTop={handleToggleAlwaysOnTop}
+                onToggleCompactMode={handleToggleCompactMode}
+                isAutoClipboard={isAutoClipboard}
+                isAlwaysOnTop={isAlwaysOnTop}
+                isCompactMode={isCompactMode}
+                theme={theme}
+                onToggleTheme={toggleTheme}
               />
-              <div className="main-content">
-                <div className="controls">
+              <div className={`main-content${isCompactMode ? " compact" : ""}`}>
+                <div className={`controls${isCompactMode ? " compact" : ""}`}>
                   <div className="controls-left">
                     <button
-                      className="text-copy-button"
+                      className="icon-button copy-style"
                       onClick={handleCopyText}
+                      title="テキスト全体をコピー"
                     >
-                      コピー
+                      <ClipboardCopyIcon />
                     </button>
-                    <button className="clear-button" onClick={handleClearText}>
-                      クリア
+                    <button
+                      className="icon-button clear-style"
+                      onClick={handleClearText}
+                      title="テキスト全体をクリア"
+                    >
+                      <TrashIcon />
                     </button>
-                    <label className="checkbox-label">
-                      <input
-                        type="checkbox"
-                        checked={isAutoClipboard}
-                        onChange={(e) => setIsAutoClipboard(e.target.checked)}
-                      />
-                      クリップボード自動取得
-                    </label>
+                    <button
+                      className={`icon-button ${
+                        isAutoClipboard ? "active" : ""
+                      }`}
+                      onClick={() => setIsAutoClipboard(!isAutoClipboard)}
+                      title="クリップボード自動取得"
+                      disabled={isCompactMode}
+                    >
+                      <ClipboardIcon />
+                    </button>
+                    <button
+                      className={`icon-button ${isAlwaysOnTop ? "active" : ""}`}
+                      onClick={() => setIsAlwaysOnTop(!isAlwaysOnTop)}
+                      title="常に手前に表示"
+                    >
+                      <PinIcon />
+                    </button>
+                    <button
+                      className={`icon-button ${isCompactMode ? "active" : ""}`}
+                      onClick={handleToggleCompactMode}
+                      title={
+                        isCompactMode ? "通常モードに戻す" : "コンパクトモード"
+                      }
+                    >
+                      <CompactIcon />
+                    </button>
+                    <button
+                      className="icon-button"
+                      onClick={toggleTheme}
+                      title="テーマの切り替え"
+                    >
+                      {theme === "light" ? <SunIcon /> : <MoonIcon />}
+                    </button>
                   </div>
-                  <label className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={isAlwaysOnTop}
-                      onChange={(e) => setIsAlwaysOnTop(e.target.checked)}
-                    />
-                    最前面に固定
-                  </label>
                 </div>
 
-                <textarea
-                  id="main-textarea"
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  onFocus={handleTextAreaFocus}
-                  placeholder="ここにテキストを入力またはペーストしてください"
-                />
+                {!isCompactMode && (
+                  <textarea
+                    id="main-textarea"
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    onFocus={handleTextAreaFocus}
+                    placeholder="ここにテキストを入力またはペーストしてください"
+                  />
+                )}
 
                 <div className="info-panel">
                   <div className="info-item">
                     <span>文字数</span>
                     <span>{counts.withSpaces}</span>
                     <button
-                      className="copy-button"
+                      className="icon-copy-button"
                       onClick={() => handleCopy(counts.withSpaces)}
+                      title="数値をコピー"
                     >
-                      コピー
+                      <CopyIcon />
                     </button>
                   </div>
                   <div className="info-item">
                     <span>文字数 (改行除く)</span>
                     <span>{counts.withoutNewlines}</span>
                     <button
-                      className="copy-button"
+                      className="icon-copy-button"
                       onClick={() => handleCopy(counts.withoutNewlines)}
+                      title="数値をコピー"
                     >
-                      コピー
+                      <CopyIcon />
                     </button>
                   </div>
                   <div className="info-item">
                     <span>文字数 (改行、空白除く)</span>
                     <span>{counts.withoutSpacesAndNewlines}</span>
                     <button
-                      className="copy-button"
+                      className="icon-copy-button"
                       onClick={() =>
                         handleCopy(counts.withoutSpacesAndNewlines)
                       }
+                      title="数値をコピー"
                     >
-                      コピー
+                      <CopyIcon />
                     </button>
                   </div>
                   <div className="info-item">
                     <span>行数</span>
                     <span>{counts.lines}</span>
                     <button
-                      className="copy-button"
+                      className="icon-copy-button"
                       onClick={() => handleCopy(counts.lines)}
+                      title="数値をコピー"
                     >
-                      コピー
+                      <CopyIcon />
                     </button>
                   </div>
                   <hr className="info-divider" />
@@ -281,7 +508,12 @@ export const App = () => {
                     onClick={() => setIsDetailsVisible(!isDetailsVisible)}
                   >
                     <span>
-                      詳細なカウント {isDetailsVisible ? "▲ 閉じる" : "▼ 開く"}
+                      {isDetailsVisible ? (
+                        <ChevronUpIcon size={18} />
+                      ) : (
+                        <ChevronDownIcon size={18} />
+                      )}
+                      詳細なカウント
                     </span>
                   </div>
                   {isDetailsVisible && (
@@ -290,50 +522,55 @@ export const App = () => {
                         <span>バイト数 (UTF-8)</span>
                         <span>{counts.bytesUtf8}</span>
                         <button
-                          className="copy-button"
+                          className="icon-copy-button"
                           onClick={() => handleCopy(counts.bytesUtf8)}
+                          title="数値をコピー"
                         >
-                          コピー
+                          <CopyIcon />
                         </button>
                       </div>
                       <div className="info-item">
                         <span>バイト数 (UTF-16)</span>
                         <span>{counts.bytesUtf16}</span>
                         <button
-                          className="copy-button"
+                          className="icon-copy-button"
                           onClick={() => handleCopy(counts.bytesUtf16)}
+                          title="数値をコピー"
                         >
-                          コピー
+                          <CopyIcon />
                         </button>
                       </div>
                       <div className="info-item">
                         <span>バイト数 (Shift-JIS)</span>
                         <span>{counts.bytesShiftJis}</span>
                         <button
-                          className="copy-button"
+                          className="icon-copy-button"
                           onClick={() => handleCopy(counts.bytesShiftJis)}
+                          title="数値をコピー"
                         >
-                          コピー
+                          <CopyIcon />
                         </button>
                       </div>
                       <div className="info-item">
                         <span>バイト数 (EUC-JP)</span>
                         <span>{counts.bytesEucJp}</span>
                         <button
-                          className="copy-button"
+                          className="icon-copy-button"
                           onClick={() => handleCopy(counts.bytesEucJp)}
+                          title="数値をコピー"
                         >
-                          コピー
+                          <CopyIcon />
                         </button>
                       </div>
                       <div className="info-item">
                         <span>バイト数 (JIS)</span>
                         <span>{counts.bytesJis}</span>
                         <button
-                          className="copy-button"
+                          className="icon-copy-button"
                           onClick={() => handleCopy(counts.bytesJis)}
+                          title="数値をコピー"
                         >
-                          コピー
+                          <CopyIcon />
                         </button>
                       </div>
                       <hr className="info-divider" />
@@ -341,10 +578,11 @@ export const App = () => {
                         <span>原稿用紙 (400字)</span>
                         <span>{counts.manuscriptPages} 枚</span>
                         <button
-                          className="copy-button"
+                          className="icon-copy-button"
                           onClick={() => handleCopy(counts.manuscriptPages)}
+                          title="数値をコピー"
                         >
-                          コピー
+                          <CopyIcon />
                         </button>
                       </div>
                     </div>

@@ -26,7 +26,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
   openManualWindow: () => ipcRenderer.send("open-manual-window"),
   showAboutDialog: () => ipcRenderer.send("show-about-dialog"),
   getPlatform: () => ipcRenderer.invoke("get-platform"),
-  openExternalLink: (url: string) => ipcRenderer.send("open-external-link", url),
+  openExternalLink: (url: string) =>
+    ipcRenderer.send("open-external-link", url),
+  setWindowSize: (width: number, height: number, resizable: boolean) =>
+    ipcRenderer.send("set-window-size", width, height, resizable),
+  setMinimumSize: (width: number, height: number) =>
+    ipcRenderer.send("set-minimum-size", width, height),
   onFileOpened: (callback: (content: string) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, value: string) =>
       callback(value);
@@ -34,5 +39,31 @@ contextBridge.exposeInMainWorld("electronAPI", {
     return () => {
       ipcRenderer.removeListener("file-opened", handler);
     };
+  },
+  onMenuAction: (callback: (action: string, checked?: boolean) => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      action: string,
+      checked?: boolean
+    ) => callback(action, checked);
+    ipcRenderer.on("menu-action", handler);
+    return () => {
+      ipcRenderer.removeListener("menu-action", handler);
+    };
+  },
+  setMaximumSize: (width: number, height: number) =>
+  ipcRenderer.send("set-maximum-size", width, height),
+  setMaximizable: (maximizable: boolean) =>
+  ipcRenderer.send("set-maximizable", maximizable),
+  updateMenuState: (key: string, value: boolean) => {
+    ipcRenderer.send("update-menu-state", key, value);
+  },
+  checkForUpdates: () => ipcRenderer.send("check-for-updates"),
+  setNativeTheme: (theme: "light" | "dark") => {
+    ipcRenderer.send("set-native-theme", theme);
+  },
+  getInitialTheme: () => ipcRenderer.invoke("get-initial-theme"),
+  saveTheme: (theme: "light" | "dark") => {
+    ipcRenderer.send("save-theme", theme);
   },
 });

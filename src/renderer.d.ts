@@ -19,14 +19,26 @@ export interface IElectronAPI {
   readClipboard: () => Promise<string>;
   openFile: () => Promise<string | null>;
   saveFile: (
-    content: string,
+    content: string
   ) => Promise<{ success: boolean; path?: string; error?: string }>;
   quitApp: () => void;
   openManualWindow: () => void;
   showAboutDialog: () => void;
   getPlatform: () => Promise<"win32" | "darwin" | "linux">;
   openExternalLink: (url: string) => void;
+  setWindowSize: (width: number, height: number, resizable: boolean) => void;
+  setMinimumSize: (width: number, height: number) => void;
+  setMaximumSize: (width: number, height: number) => void;
+  setMaximizable: (maximizable: boolean) => void;
   onFileOpened: (callback: (content: string) => void) => () => void;
+  onMenuAction: (
+    callback: (action: string, checked?: boolean) => void
+  ) => () => void;
+  updateMenuState: (key: string, value: boolean) => void;
+  checkForUpdates: () => void;
+  setNativeTheme: (theme: "light" | "dark") => void;
+  getInitialTheme: () => Promise<"light" | "dark">;
+  saveTheme: (theme: "light" | "dark") => void;
 }
 
 declare global {

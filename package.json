@@ -28,19 +28,22 @@
     "build:webpack": "cross-env NODE_ENV=production webpack --progress",
     "clean": "rimraf release",
     "build:exe": "electron-builder",
-    "build": "npm run clean && npm run build:webpack && npm run build:exe"
+    "build": "npm run clean && npm run build:webpack && npm run build:exe",
+    "build:win": "npm run clean && npm run build:webpack && electron-builder --win -c.publish.channel=latest-win",
+    "build:mac": "npm run clean && npm run build:webpack && electron-builder --mac -c.publish.channel=latest-mac",
+    "build:linux": "npm run clean && npm run build:webpack && electron-builder --linux -c.publish.channel=latest-linux"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/molyashi/character-counter.git"
+    "url": "https://github.com/molyashi/CharacterCounter.git"
   },
   "keywords": [],
   "author": "molyashi <123541667+molyashi@users.noreply.github.com>",
   "license": "AGPL-3.0-or-later",
   "bugs": {
-    "url": "https://github.com/molyashi/character-counter/issues"
+    "url": "https://github.com/molyashi/CharacterCounter/issues"
   },
-  "homepage": "https://github.com/molyashi/character-counter#readme",
+  "homepage": "https://github.com/molyashi/CharacterCounter#readme",
   "devDependencies": {
     "@types/encoding-japanese": "^2.2.1",
     "@types/node": "^24.0.10",
@@ -51,6 +54,7 @@
     "css-loader": "^7.1.2",
     "electron": "^37.2.0",
     "electron-builder": "^26.0.12",
+    "electron-updater": "^6.6.2",
     "electronmon": "^2.0.3",
     "html-webpack-plugin": "^5.6.3",
     "mini-css-extract-plugin": "^2.9.2",
@@ -70,13 +74,19 @@
     "react-router-dom": "^7.6.3"
   },
   "build": {
-    "appId": "com.character-counter",
+    "appId": "com.molyashi.CharacterCounter",
     "productName": "文字数カウンター",
     "files": [
       "dist/**/*",
       "node_modules/**/*",
       "package.json"
     ],
+    "publish": {
+      "provider": "github",
+      "owner": "molyashi",
+      "repo": "CharacterCounter",
+      "channel": "latest"
+    },
     "directories": {
       "output": "release"
     },
@@ -95,8 +105,7 @@
     },
     "linux": {
       "target": [
-        "deb",
-        "rpm"
+        "AppImage"
       ],
       "icon": "assets/icon.png",
       "category": "Utility"

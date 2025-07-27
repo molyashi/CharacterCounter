@@ -16,6 +16,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import "./MenuBar.css";
+import { MoonIcon, SunIcon } from "./Icon";
 
 interface MenuBarProps {
   platform: string;
@@ -23,9 +24,27 @@ interface MenuBarProps {
   onSaveFile: () => void;
   onExit: () => void;
   onOpenManual: () => void;
+  onCheckForUpdates: () => void;
+  onCopyText: () => void;
+  onClearText: () => void;
+  onToggleAutoClipboard: () => void;
+  onToggleAlwaysOnTop: () => void;
+  onToggleCompactMode: () => void;
+  isAutoClipboard: boolean;
+  isAlwaysOnTop: boolean;
+  isCompactMode: boolean;
+  theme: "light" | "dark";
+  onToggleTheme: () => void;
 }
 
-const MENU_ORDER = ["file", "help"];
+interface MenuItem {
+  label: string;
+  shortcut?: string;
+  checked?: boolean;
+  icon?: React.ReactNode;
+}
+
+const MENU_ORDER = ["file", "tool", "help"];
 
 export const MenuBar: React.FC<MenuBarProps> = ({
   platform,
@@ -33,6 +52,17 @@ export const MenuBar: React.FC<MenuBarProps> = ({
   onSaveFile,
   onExit,
   onOpenManual,
+  onCheckForUpdates,
+  onCopyText,
+  onClearText,
+  onToggleAutoClipboard,
+  onToggleAlwaysOnTop,
+  onToggleCompactMode,
+  isAutoClipboard,
+  isAlwaysOnTop,
+  isCompactMode,
+  theme,
+  onToggleTheme,
 }) => {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [focusedBarItem, setFocusedBarItem] = useState<string | null>(null);
@@ -46,6 +76,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
   const barItemRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const dropdownItemRefs = useRef<Record<string, (HTMLDivElement | null)[]>>({
     file: [],
+    tool: [],
     help: [],
   });
 
@@ -59,8 +90,17 @@ export const MenuBar: React.FC<MenuBarProps> = ({
 
   const menuActions: Record<string, (() => void)[]> = {
     file: [onOpenFile, onSaveFile, onExit],
+    tool: [
+      onCopyText,
+      onClearText,
+      onToggleAutoClipboard,
+      onToggleAlwaysOnTop,
+      onToggleCompactMode,
+      onToggleTheme,
+    ],
     help: [
-      () => window.electronAPI?.openManualWindow?.(),
+      onOpenManual,
+      onCheckForUpdates,
       () => window.electronAPI?.showAboutDialog?.(),
     ],
   };
@@ -81,6 +121,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
       if (isAltPressed) {
         let menuToOpen: string | null = null;
         if (e.key.toLowerCase() === "f") menuToOpen = "file";
+        if (e.key.toLowerCase() === "t") menuToOpen = "tool";
         if (e.key.toLowerCase() === "h") menuToOpen = "help";
 
         if (menuToOpen) {
@@ -211,7 +252,22 @@ export const MenuBar: React.FC<MenuBarProps> = ({
     isAltPressed,
     resetMenuState,
     platform,
+    menuActions,
   ]);
+
+  const getMenuDisplayName = (name: string) => {
+    if (name === "file") return "ファイル";
+    if (name === "tool") return "ツール";
+    if (name === "help") return "ヘルプ";
+    return "";
+  };
+
+  const getMnemonic = (name: string) => {
+    if (name === "file") return "F";
+    if (name === "tool") return "T";
+    if (name === "help") return "H";
+    return "";
+  };
 
   return (
     <nav
@@ -222,9 +278,45 @@ export const MenuBar: React.FC<MenuBarProps> = ({
 
       {platform !== "darwin" &&
         MENU_ORDER.map((menuName) => {
-          const menuItems = {
-            file: [".txtを読み込む", ".txtとして保存", "終了"],
-            help: ["使用方法", "バージョン情報"],
+          const menuItems: Record<string, MenuItem[]> = {
+            file: [
+              { label: ".txtを読み込む", shortcut: "Ctrl+O" },
+              { label: ".txtとして保存", shortcut: "Ctrl+S" },
+              { label: "終了" },
+            ],
+            tool: [
+              { label: "テキスト全体をコピー", shortcut: "Ctrl+Shift+C" },
+              { label: "テキスト全体をクリア", shortcut: "Ctrl+Shift+D" },
+              {
+                label: "クリップボード自動取得",
+                shortcut: "Ctrl+Shift+B",
+                checked: isAutoClipboard,
+              },
+              {
+                label: "常に手前に表示",
+                shortcut: "Ctrl+Shift+T",
+                checked: isAlwaysOnTop,
+              },
+              {
+                label: "コンパクトモード",
+                shortcut: "Ctrl+Shift+M",
+                checked: isCompactMode,
+              },
+              {
+                label: "テーマを切り替え",
+                icon:
+                  theme === "light" ? (
+                    <MoonIcon size={18} />
+                  ) : (
+                    <SunIcon size={18} />
+                  ),
+              },
+            ],
+            help: [
+              { label: "使用方法" },
+              { label: "更新を確認..." },
+              { label: "バージョン情報" },
+            ],
           };
 
           return (
@@ -252,33 +344,48 @@ export const MenuBar: React.FC<MenuBarProps> = ({
                 }`}
                 tabIndex={-1}
               >
-                {menuName === "file" ? "ファイル" : "ヘルプ"}(
+                {getMenuDisplayName(menuName)}(
                 <span className={isAltPressed ? "mnemonic-visible" : ""}>
-                  {menuName === "file" ? "F" : "H"}
+                  {getMnemonic(menuName)}
                 </span>
                 )
               </div>
               {openMenu === menuName && (
                 <div className="dropdown-menu">
-                  {menuItems[menuName as keyof typeof menuItems].map(
+                  {(menuItems[menuName as keyof typeof menuItems] || []).map(
                     (item, index) => (
                       <div
-                        key={item}
+                        key={item.label}
                         ref={(el) => {
-                          dropdownItemRefs.current[menuName][index] = el;
+                          if (dropdownItemRefs.current[menuName]) {
+                            dropdownItemRefs.current[menuName][index] = el;
+                          }
                         }}
                         className={`dropdown-item ${
                           selectedDropdownIndex === index ? "selected" : ""
-                        }`}
-                        onMouseDown={() => {
+                        } ${item.checked ? "checked" : ""} ${
+                          item.checked !== undefined ? "is-toggle" : ""
+                        } ${item.icon ? "has-svg-icon" : ""}`}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
                           const action = menuActions[menuName]?.[index];
                           if (action) {
                             action();
-                            resetMenuState();
                           }
+                          resetMenuState();
                         }}
                       >
-                        {item}
+                        <span className="dropdown-item-label">
+                          <span className="dropdown-check-mark">
+                            {item.icon ? item.icon : null}
+                          </span>
+                          {item.label}
+                        </span>
+                        {item.shortcut && (
+                          <span className="dropdown-item-shortcut">
+                            {item.shortcut}
+                          </span>
+                        )}
                       </div>
                     )
                   )}
