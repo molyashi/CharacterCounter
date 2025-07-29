@@ -25,7 +25,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   quitApp: () => ipcRenderer.send("quit-app"),
   openManualWindow: () => ipcRenderer.send("open-manual-window"),
   showAboutDialog: () => ipcRenderer.send("show-about-dialog"),
-  getPlatform: () => ipcRenderer.invoke("get-platform"),
   openExternalLink: (url: string) =>
     ipcRenderer.send("open-external-link", url),
   setWindowSize: (width: number, height: number, resizable: boolean) =>
@@ -40,12 +39,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
       ipcRenderer.removeListener("file-opened", handler);
     };
   },
-  onMenuAction: (callback: (action: string, checked?: boolean) => void) => {
+  onMenuAction: (callback: (action: string, payload?: any) => void) => {
     const handler = (
       _event: Electron.IpcRendererEvent,
       action: string,
-      checked?: boolean
-    ) => callback(action, checked);
+      payload?: any
+    ) => callback(action, payload);
     ipcRenderer.on("menu-action", handler);
     return () => {
       ipcRenderer.removeListener("menu-action", handler);
@@ -59,11 +58,20 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.send("update-menu-state", key, value);
   },
   checkForUpdates: () => ipcRenderer.send("check-for-updates"),
-  setNativeTheme: (theme: "light" | "dark") => {
-    ipcRenderer.send("set-native-theme", theme);
+   setThemeSource: (theme: "light" | "dark" | "auto") => {
+    ipcRenderer.send("set-theme-source", theme);
   },
-  getInitialTheme: () => ipcRenderer.invoke("get-initial-theme"),
-  saveTheme: (theme: "light" | "dark") => {
+  saveTheme: (theme: "light" | "dark" | "auto") => {
     ipcRenderer.send("save-theme", theme);
   },
+  onThemeUpdate: (callback: (theme: "light" | "dark") => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, theme: "light" | "dark") =>
+      callback(theme);
+    ipcRenderer.on("theme-updated", handler);
+    return () => {
+      ipcRenderer.removeListener("theme-updated", handler);
+    };
+  },
+  getInitialLoadInfo: () => ipcRenderer.invoke('get-initial-load-info'),
+  readyToShow: () => ipcRenderer.send('ready-to-show'),
 });

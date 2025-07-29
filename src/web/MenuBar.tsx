@@ -16,7 +16,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import "./MenuBar.css";
-import { MoonIcon, SunIcon } from "./Icon";
+import { MoonIcon, SunIcon, SystemThemeIcon } from "./Icon";
 
 interface MenuBarProps {
   platform: string;
@@ -33,7 +33,7 @@ interface MenuBarProps {
   isAutoClipboard: boolean;
   isAlwaysOnTop: boolean;
   isCompactMode: boolean;
-  theme: "light" | "dark";
+  theme: "light" | "dark" | "auto";
   onToggleTheme: () => void;
 }
 
@@ -278,6 +278,31 @@ export const MenuBar: React.FC<MenuBarProps> = ({
 
       {platform !== "darwin" &&
         MENU_ORDER.map((menuName) => {
+          const getThemeIcon = () => {
+            switch (theme) {
+              case "light":
+                return <SunIcon size={18} />;
+              case "dark":
+                return <MoonIcon size={18} />;
+              case "auto":
+                return <SystemThemeIcon size={18} />;
+              default:
+                return null;
+            }
+          };
+          const getThemeLabel = () => {
+            switch (theme) {
+              case "light":
+                return "テーマ: ライト";
+              case "dark":
+                return "テーマ: ダーク";
+              case "auto":
+                return "テーマ: システム";
+              default:
+                return "テーマ切り替え";
+            }
+          };
+
           const menuItems: Record<string, MenuItem[]> = {
             file: [
               { label: ".txtを読み込む", shortcut: "Ctrl+O" },
@@ -303,13 +328,8 @@ export const MenuBar: React.FC<MenuBarProps> = ({
                 checked: isCompactMode,
               },
               {
-                label: "テーマを切り替え",
-                icon:
-                  theme === "light" ? (
-                    <MoonIcon size={18} />
-                  ) : (
-                    <SunIcon size={18} />
-                  ),
+                label: getThemeLabel(),
+                icon: getThemeIcon(),
               },
             ],
             help: [

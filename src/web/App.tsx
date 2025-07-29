@@ -31,6 +31,7 @@ import {
   CompactIcon,
   ChevronUpIcon,
   ChevronDownIcon,
+  SystemThemeIcon,
 } from "./Icon";
 
 interface Counts {
@@ -63,7 +64,10 @@ export const App = () => {
   });
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState<boolean>(false);
   const [isAutoClipboard, setIsAutoClipboard] = useState<boolean>(true);
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [selectedTheme, setSelectedTheme] = useState<"light" | "dark" | "auto">(
+    "auto"
+  );
+  const [displayTheme, setDisplayTheme] = useState<"light" | "dark">("light");
   const lastClipboardText = useRef<string>("");
   const [copyFeedback, setCopyFeedback] = useState<string>("");
   const [isDetailsVisible, setIsDetailsVisible] = useState<boolean>(false);
@@ -77,24 +81,65 @@ export const App = () => {
   });
 
   useEffect(() => {
-    const fetchInitialTheme = async () => {
-      const initialTheme = await window.electronAPI.getInitialTheme();
-      if (initialTheme) {
-        setTheme(initialTheme);
+    const initializeApp = async () => {
+      const { selectedTheme, displayTheme, platform } =
+        await window.electronAPI.getInitialLoadInfo();
+
+      setSelectedTheme(selectedTheme);
+      setDisplayTheme(displayTheme);
+      setPlatform(platform);
+
+      document.body.className = displayTheme === "dark" ? "dark-theme" : "";
+
+      window.electronAPI.readyToShow();
+
+      if (platform === "darwin") {
+        window.electronAPI.saveTheme(selectedTheme);
       }
     };
-    fetchInitialTheme();
-  }, []);
-
-  const toggleTheme = useCallback(() => {
-    setTheme((prevTheme) => (prevTheme === "light" ? "dark" : "light"));
+    initializeApp();
   }, []);
 
   useEffect(() => {
-    document.body.className = theme === "dark" ? "dark-theme" : "";
-    window.electronAPI.setNativeTheme(theme);
-    window.electronAPI.saveTheme(theme);
-  }, [theme]);
+    if (!platform) return;
+    window.electronAPI.setThemeSource(selectedTheme);
+    window.electronAPI.saveTheme(selectedTheme);
+
+    let cleanupThemeUpdate: (() => void) | undefined;
+
+    const updateDisplayTheme = async () => {
+      if (selectedTheme === "auto") {
+        cleanupThemeUpdate = window.electronAPI.onThemeUpdate((newTheme) => {
+          setDisplayTheme(newTheme);
+        });
+      } else {
+        setDisplayTheme(selectedTheme);
+      }
+    };
+
+    updateDisplayTheme();
+
+    return () => {
+      if (cleanupThemeUpdate) {
+        cleanupThemeUpdate();
+      }
+    };
+  }, [selectedTheme, platform]);
+
+  useEffect(() => {
+    document.body.className = displayTheme === "dark" ? "dark-theme" : "";
+  }, [displayTheme]);
+
+  const handleSetTheme = useCallback((theme: "light" | "dark" | "auto") => {
+    setSelectedTheme(theme);
+  }, []);
+
+  const cycleTheme = useCallback(() => {
+    const themes: Array<"light" | "dark" | "auto"> = ["light", "dark", "auto"];
+    const currentIndex = themes.indexOf(selectedTheme);
+    const nextIndex = (currentIndex + 1) % themes.length;
+    setSelectedTheme(themes[nextIndex]);
+  }, [selectedTheme]);
 
   const handleCopyText = useCallback(() => {
     if (!text) return;
@@ -130,6 +175,7 @@ export const App = () => {
   const NORMAL_MIN_HEIGHT = 600;
 
   useEffect(() => {
+    if (!platform) return;
     if (isCompactMode) {
       preCompactState.current = {
         isAutoClipboard,
@@ -151,15 +197,10 @@ export const App = () => {
       window.electronAPI.setMaximumSize(10000, 10000);
       window.electronAPI.setWindowSize(800, 800, true);
     }
-  }, [isCompactMode]);
+  }, [isCompactMode, platform]);
 
   useEffect(() => {
-    const fetchPlatform = async () => {
-      const plat = await window.electronAPI.getPlatform();
-      setPlatform(plat);
-    };
-    fetchPlatform();
-
+    if (!platform) return;
     const cleanupFileOpened = window.electronAPI.onFileOpened((content) => {
       if (content !== null) {
         setText(content);
@@ -167,7 +208,7 @@ export const App = () => {
     });
 
     const cleanupMenuAction = window.electronAPI.onMenuAction(
-      (action, checked) => {
+      (action, payload) => {
         switch (action) {
           case "copy-text":
             handleCopyText();
@@ -176,16 +217,22 @@ export const App = () => {
             handleClearText();
             break;
           case "toggle-auto-clipboard":
-            setIsAutoClipboard(checked ?? ((prev) => !prev));
+            setIsAutoClipboard(payload ?? ((prev) => !prev));
             break;
           case "toggle-always-on-top":
-            setIsAlwaysOnTop(checked ?? ((prev) => !prev));
+            setIsAlwaysOnTop(payload ?? ((prev) => !prev));
             break;
           case "toggle-compact-mode":
             handleToggleCompactMode();
             break;
-          case "toggle-theme":
-            toggleTheme();
+          case "set-theme":
+            if (
+              payload === "light" ||
+              payload === "dark" ||
+              payload === "auto"
+            ) {
+              handleSetTheme(payload);
+            }
             break;
         }
       }
@@ -196,12 +243,13 @@ export const App = () => {
       cleanupMenuAction();
     };
   }, [
+    platform,
     handleCopyText,
     handleClearText,
     handleToggleAutoClipboard,
     handleToggleAlwaysOnTop,
     handleToggleCompactMode,
-    toggleTheme,
+    handleSetTheme,
   ]);
 
   const handleOpenFile = useCallback(async () => {
@@ -224,11 +272,13 @@ export const App = () => {
   }, [text]);
 
   useEffect(() => {
+    if (!platform) return;
     window.electronAPI.updateMenuState("toggle-compact-mode", isCompactMode);
-  }, [isCompactMode]);
+  }, [isCompactMode, platform]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!platform) return;
       const modifier = platform === "darwin" ? e.metaKey : e.ctrlKey;
 
       if (modifier && e.shiftKey) {
@@ -326,11 +376,13 @@ export const App = () => {
   }, [text]);
 
   useEffect(() => {
+    if (!platform) return;
     window.electronAPI.setAlwaysOnTop(isAlwaysOnTop);
     window.electronAPI.updateMenuState("toggle-always-on-top", isAlwaysOnTop);
-  }, [isAlwaysOnTop]);
+  }, [isAlwaysOnTop, platform]);
 
   useEffect(() => {
+    if (!platform) return;
     window.electronAPI.updateMenuState(
       "toggle-auto-clipboard",
       isAutoClipboard
@@ -344,7 +396,7 @@ export const App = () => {
       }
     }, 500);
     return () => clearInterval(intervalId);
-  }, [isAutoClipboard]);
+  }, [isAutoClipboard, platform]);
 
   const handleTextAreaFocus = () => {
     if (isAutoClipboard) {
@@ -366,6 +418,42 @@ export const App = () => {
   const handleCheckForUpdates = () => {
     window.electronAPI.checkForUpdates();
   };
+
+  const ThemeSwitcher = () => {
+    const getIcon = () => {
+      switch (selectedTheme) {
+        case "light":
+          return <SunIcon />;
+        case "dark":
+          return <MoonIcon />;
+        case "auto":
+          return <SystemThemeIcon />;
+        default:
+          return null;
+      }
+    };
+    const getTitle = () => {
+      switch (selectedTheme) {
+        case "light":
+          return "テーマの切り替え(ライトテーマ)";
+        case "dark":
+          return "テーマの切り替え(ダークテーマ)";
+        case "auto":
+          return "テーマの切り替え(システムテーマ)";
+        default:
+          return "テーマの切り替え";
+      }
+    };
+    return (
+      <button className="icon-button" onClick={cycleTheme} title={getTitle()}>
+        {getIcon()}
+      </button>
+    );
+  };
+
+  if (!platform) {
+    return null;
+  }
 
   return (
     <HashRouter>
@@ -389,8 +477,8 @@ export const App = () => {
                 isAutoClipboard={isAutoClipboard}
                 isAlwaysOnTop={isAlwaysOnTop}
                 isCompactMode={isCompactMode}
-                theme={theme}
-                onToggleTheme={toggleTheme}
+                theme={selectedTheme}
+                onToggleTheme={cycleTheme}
               />
               <div className={`main-content${isCompactMode ? " compact" : ""}`}>
                 <div className={`controls${isCompactMode ? " compact" : ""}`}>
@@ -435,13 +523,7 @@ export const App = () => {
                     >
                       <CompactIcon />
                     </button>
-                    <button
-                      className="icon-button"
-                      onClick={toggleTheme}
-                      title="テーマの切り替え"
-                    >
-                      {theme === "light" ? <SunIcon /> : <MoonIcon />}
-                    </button>
+                    <ThemeSwitcher />
                   </div>
                 </div>
 

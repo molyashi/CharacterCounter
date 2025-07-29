@@ -24,6 +24,7 @@ import {
   Menu,
   dialog,
   shell,
+  nativeTheme,
 } from "electron";
 import { autoUpdater } from "electron-updater";
 
@@ -33,7 +34,7 @@ let manualWindow: BrowserWindow | null = null;
 const settingsPath = path.join(app.getPath("userData"), "CharacterCounterData.json");
 
 interface AppSettings {
-  theme: "light" | "dark";
+  theme: "light" | "dark" | "auto";
 }
 
 function readSettings(): AppSettings {
@@ -45,7 +46,7 @@ function readSettings(): AppSettings {
   } catch (error) {
     console.error("Failed to read settings, using defaults:", error);
   }
-  return { theme: "light" };
+  return { theme: "auto" };
 }
 
 function saveSettings(settings: AppSettings) {
@@ -132,6 +133,11 @@ function openManualWindow() {
   manualWindow.setMenu(null);
   manualWindow.loadFile(path.join(__dirname, "../dist/index.html"), {
     hash: "/manual",
+  });
+
+  manualWindow.webContents.on('did-finish-load', () => {
+    const theme = nativeTheme.shouldUseDarkColors ? "dark" : "light";
+    manualWindow?.webContents.send("theme-updated", theme);
   });
 
   manualWindow.on("closed", () => {
@@ -265,10 +271,31 @@ function buildMenu() {
         },
         { type: "separator" },
         {
-          label: "テーマを切り替え",
-          click: () => {
-            mainWindow?.webContents.send("menu-action", "toggle-theme");
-          },
+          id: "theme-menu",
+          label: "テーマ",
+          submenu: [
+            {
+              id: "theme-light",
+              label: "ライト",
+              type: "radio",
+              click: () =>
+                mainWindow?.webContents.send("menu-action", "set-theme", "light"),
+            },
+            {
+              id: "theme-dark",
+              label: "ダーク",
+              type: "radio",
+              click: () =>
+                mainWindow?.webContents.send("menu-action", "set-theme", "dark"),
+            },
+            {
+              id: "theme-auto",
+              label: "システム",
+              type: "radio",
+              click: () =>
+                mainWindow?.webContents.send("menu-action", "set-theme", "auto"),
+            },
+          ],
         },
       ],
     },
@@ -298,13 +325,13 @@ ipcMain.on("update-menu-state", (event, key: string, value: boolean) => {
 
 function createWindow() {
   const isMac = process.platform === "darwin";
-  const settings = readSettings();
 
   const browserWindowOptions: Electron.BrowserWindowConstructorOptions = {
     width: 800,
     height: 800,
     minWidth: 540,
     minHeight: 600,
+    show: false,
     icon: path.join(__dirname, "../assets/icon.png"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -319,11 +346,14 @@ function createWindow() {
   } else {
     browserWindowOptions.frame = false;
     browserWindowOptions.titleBarStyle = "hidden";
-    const titleBarOverlay = {
-      light: { color: "#ededff", symbolColor: "#60606a", height: 36 },
-      dark: { color: "#2d2d2d", symbolColor: "#cccccc", height: 36 },
+    const getTitleBarOverlay = () => {
+      const colors = {
+        light: { color: "#ededff", symbolColor: "#60606a", height: 36 },
+        dark: { color: "#2d2d2d", symbolColor: "#cccccc", height: 36 },
+      };
+      return nativeTheme.shouldUseDarkColors ? colors.dark : colors.light;
     };
-    browserWindowOptions.titleBarOverlay = titleBarOverlay[settings.theme];
+    browserWindowOptions.titleBarOverlay = getTitleBarOverlay();
   }
 
   mainWindow = new BrowserWindow(browserWindowOptions);
@@ -336,7 +366,7 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
 
-  //mainWindow.webContents.openDevTools();
+  // mainWindow.webContents.openDevTools();
 
   mainWindow.on("closed", () => {
     mainWindow = null;
@@ -347,6 +377,20 @@ app.whenReady().then(() => {
   createWindow();
 
   autoUpdater.checkForUpdatesAndNotify();
+
+  nativeTheme.on("updated", () => {
+    const theme = nativeTheme.shouldUseDarkColors ? "dark" : "light";
+    mainWindow?.webContents.send("theme-updated", theme);
+    manualWindow?.webContents.send("theme-updated", theme);
+
+    if (process.platform !== 'darwin' && mainWindow) {
+        const colors = {
+          light: { color: "#ededff", symbolColor: "#60606a", height: 36 },
+          dark: { color: "#2d2d2d", symbolColor: "#cccccc", height: 36 },
+        };
+        mainWindow.setTitleBarOverlay(theme === 'dark' ? colors.dark : colors.light);
+    }
+  });
 
   ipcMain.on(
   "set-window-size",
@@ -374,20 +418,12 @@ app.whenReady().then(() => {
     mainWindow?.setMaximizable(maximizable);
   });
 
-  ipcMain.handle("get-platform", () => process.platform);
-
   ipcMain.on("set-always-on-top", (event, isAlwaysOnTop) => {
     mainWindow?.setAlwaysOnTop(isAlwaysOnTop);
   });
 
-  ipcMain.on("set-native-theme", (event, theme: "light" | "dark") => {
-    if (process.platform !== "darwin") {
-      const titleBarOverlay = {
-        light: { color: "#ededff", symbolColor: "#60606a", height: 36 },
-        dark: { color: "#2d2d2d", symbolColor: "#cccccc", height: 36 },
-      };
-      mainWindow?.setTitleBarOverlay(titleBarOverlay[theme]);
-    }
+  ipcMain.on("set-theme-source", (event, theme: "light" | "dark" | "auto") => {
+    nativeTheme.themeSource = theme === "auto" ? "system" : theme;
   });
 
   ipcMain.handle("read-clipboard", () => {
@@ -414,14 +450,45 @@ app.whenReady().then(() => {
     manualCheckForUpdates();
   });
 
-  ipcMain.handle("get-initial-theme", () => {
-    return readSettings().theme;
+  ipcMain.handle('get-initial-load-info', () => {
+    const settings = readSettings();
+    const selectedTheme = settings.theme;
+    let displayTheme: 'light' | 'dark';
+
+    if (selectedTheme === 'auto') {
+      displayTheme = nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
+    } else {
+      displayTheme = selectedTheme;
+    }
+
+    nativeTheme.themeSource = selectedTheme === 'auto' ? 'system' : selectedTheme;
+
+    return {
+      selectedTheme,
+      displayTheme,
+      platform: process.platform,
+    };
   });
 
-  ipcMain.on("save-theme", (event, theme: "light" | "dark") => {
+  ipcMain.on('ready-to-show', () => {
+    mainWindow?.show();
+  });
+
+  ipcMain.on("save-theme", (event, theme: "light" | "dark" | "auto") => {
     const settings = readSettings();
     settings.theme = theme;
     saveSettings(settings);
+
+    if (process.platform === 'darwin') {
+      const menu = Menu.getApplicationMenu();
+      if (!menu) return;
+      const lightItem = menu.getMenuItemById("theme-light");
+      const darkItem = menu.getMenuItemById("theme-dark");
+      const autoItem = menu.getMenuItemById("theme-auto");
+      if(lightItem) lightItem.checked = theme === 'light';
+      if(darkItem) darkItem.checked = theme === 'dark';
+      if(autoItem) autoItem.checked = theme === 'auto';
+    }
   });
 
   app.on("activate", () => {

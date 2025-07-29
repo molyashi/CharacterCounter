@@ -14,16 +14,22 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import "./Manual.css";
 
 export const Manual: React.FC = () => {
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+
   useEffect(() => {
-    document.body.classList.add("manual-body-style");
-    return () => {
-      document.body.classList.remove("manual-body-style");
-    };
+    const cleanup = window.electronAPI.onThemeUpdate((newTheme) => {
+      setTheme(newTheme);
+    });
+    return cleanup;
   }, []);
+
+  useEffect(() => {
+    document.body.className = theme === "dark" ? "dark-theme" : "";
+  }, [theme]);
 
   const handleLinkClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();

@@ -24,7 +24,6 @@ export interface IElectronAPI {
   quitApp: () => void;
   openManualWindow: () => void;
   showAboutDialog: () => void;
-  getPlatform: () => Promise<"win32" | "darwin" | "linux">;
   openExternalLink: (url: string) => void;
   setWindowSize: (width: number, height: number, resizable: boolean) => void;
   setMinimumSize: (width: number, height: number) => void;
@@ -32,15 +31,20 @@ export interface IElectronAPI {
   setMaximizable: (maximizable: boolean) => void;
   onFileOpened: (callback: (content: string) => void) => () => void;
   onMenuAction: (
-    callback: (action: string, checked?: boolean) => void
+    callback: (action: string, payload?: any) => void
   ) => () => void;
   updateMenuState: (key: string, value: boolean) => void;
   checkForUpdates: () => void;
-  setNativeTheme: (theme: "light" | "dark") => void;
-  getInitialTheme: () => Promise<"light" | "dark">;
-  saveTheme: (theme: "light" | "dark") => void;
+  setThemeSource: (theme: "light" | "dark" | "auto") => void;
+  saveTheme: (theme: "light" | "dark" | "auto") => void;
+  onThemeUpdate: (callback: (theme: "light" | "dark") => void) => () => void;
+  getInitialLoadInfo: () => Promise<{
+    selectedTheme: "light" | "dark" | "auto";
+    displayTheme: "light" | "dark";
+    platform: string;
+  }>;
+  readyToShow: () => void;
 }
-
 declare global {
   interface Window {
     electronAPI: IElectronAPI;

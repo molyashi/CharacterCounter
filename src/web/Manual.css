@@ -16,17 +16,23 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-body.manual-body-style {
+body {
   margin: 0;
   padding: 0;
-  background-color: #fafaff;
   height: 100vh;
   overflow: hidden;
   box-sizing: border-box;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
+    sans-serif;
+  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
 }
 
 .manual-container {
-  background-color: #fafaff;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
   width: 100%;
   height: 100%;
   box-sizing: border-box;
@@ -41,4 +47,19 @@ body.manual-body-style {
 
 .manual-content h2 {
   margin-top: 0;
+  color: var(--text-primary);
+}
+
+.manual-content p,
+.manual-content li {
+    color: var(--text-secondary);
+}
+
+.manual-content a {
+    color: var(--text-accent);
+    text-decoration: none;
+}
+
+.manual-content a:hover {
+    text-decoration: underline;
 }
