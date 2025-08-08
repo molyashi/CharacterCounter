@@ -23,7 +23,7 @@
   --bg-accent: #e0e0ff;
   --text-primary: #333;
   --text-secondary: #60606a;
-  --text-accent: #0036cc;
+  --text-accent: #4a4aff;
   --border-primary: #ccc;
   --border-secondary: #eee;
   --button-primary-bg: #5c5cff;
@@ -54,7 +54,7 @@ body.dark-theme {
   --menubar-bg: #2d2d2d;
   --menubar-text: #cccccc;
   --menubar-hover-bg: #3a3d41;
-  --menubar-focus-bg: #1111bc;
+  --menubar-focus-bg: #4e4eff;
   --menubar-dropdown-hover-bg: #5c5cff;
   --menubar-dropdown-hover-text: #ffffff;
   --copy-feedback-bg: rgba(255, 255, 255, 0.85);

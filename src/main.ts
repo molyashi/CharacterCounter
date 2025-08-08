@@ -329,8 +329,6 @@ function createWindow() {
   const browserWindowOptions: Electron.BrowserWindowConstructorOptions = {
     width: 800,
     height: 800,
-    minWidth: 540,
-    minHeight: 600,
     show: false,
     icon: path.join(__dirname, "../assets/icon.png"),
     webPreferences: {
