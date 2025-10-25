@@ -16,6 +16,7 @@
 
 import path from "node:path";
 import fs from "node:fs";
+import { exec, execSync } from "node:child_process";
 import {
   BrowserWindow,
   app,
@@ -30,11 +31,13 @@ import { autoUpdater } from "electron-updater";
 
 let mainWindow: BrowserWindow | null = null;
 let manualWindow: BrowserWindow | null = null;
+let dependencyCheckCompleted = false;
 
 const settingsPath = path.join(app.getPath("userData"), "CharacterCounterData.json");
 
 interface AppSettings {
   theme: "light" | "dark" | "auto";
+  hideClipboardWarning?: boolean;
 }
 
 function readSettings(): AppSettings {
@@ -187,6 +190,40 @@ function manualCheckForUpdates() {
   });
 
   autoUpdater.checkForUpdates();
+}
+
+async function checkClipboardDependencies() {
+  if (process.platform !== "linux") {
+    return;
+  }
+
+  if (!mainWindow) {
+    return;
+  }
+
+  const settings = readSettings();
+  if (settings.hideClipboardWarning) {
+    return;
+  }
+
+  try {
+    execSync("command -v wl-paste >/dev/null 2>&1 || command -v xclip >/dev/null 2>&1");
+  } catch (error) {
+    const { checkboxChecked } = await dialog.showMessageBox(mainWindow, {
+      type: "warning",
+      title: "クリップボードライブラリの不足",
+      message: "必要なクリップボードライブラリが見つかりません。",
+      detail:
+        "クリップボードの自動取得機能を正常に動作させるには、'wl-paste' (Wayland) または 'xclip' (X11) が必要です。\n\nこれらのライブラリがなくてもアプリケーションは基本的な機能を利用できますが、クリップボードの自動取得が正しく機能しない可能性があります。\n\nお使いのディストリビューションのパッケージマネージャを使用してインストールしてください。\n例(Debian/Ubuntuなど): sudo apt install wl-paste",
+      buttons: ["OK"],
+      checkboxLabel: "今後はこのメッセージを表示しない",
+      checkboxChecked: false,
+    });
+
+    if (checkboxChecked) {
+      saveSettings({ ...settings, hideClipboardWarning: true });
+    }
+  }
 }
 
 function buildMenu() {
@@ -425,6 +462,24 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle("read-clipboard", () => {
+    if (process.platform === 'linux') {
+      return new Promise((resolve) => {
+        const command = process.env.WAYLAND_DISPLAY
+          ? 'wl-paste --no-newline'
+          : 'xclip -o -selection clipboard';
+
+        exec(command, (error, stdout) => {
+          if (error) {
+            console.warn(
+              `Native clipboard command failed: ${error.message}. Falling back to Electron API.`
+            );
+            resolve(clipboard.readText());
+          } else {
+            resolve(stdout);
+          }
+        });
+      });
+    }
     return clipboard.readText();
   });
 
@@ -468,8 +523,15 @@ app.whenReady().then(() => {
     };
   });
 
-  ipcMain.on('ready-to-show', () => {
+  ipcMain.on('ready-to-show', async () => {
+    if (dependencyCheckCompleted) {
+      return;
+    }
+    dependencyCheckCompleted = true;
+
     mainWindow?.show();
+
+    await checkClipboardDependencies();
   });
 
   ipcMain.on("save-theme", (event, theme: "light" | "dark" | "auto") => {
