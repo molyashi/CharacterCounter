@@ -17,7 +17,7 @@
     "along with this program.  If not, see <https://www.gnu.org/licenses/>."
   ],
   "name": "character-counter",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "A simple character counter app.",
   "main": "dist/main.js",
   "scripts": {
