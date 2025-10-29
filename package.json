@@ -76,6 +76,7 @@
   "build": {
     "appId": "com.molyashi.CharacterCounter",
     "productName": "文字数カウンター",
+    "artifactName": "CharacterCounter-Setup-${version}-${arch}.${ext}",
     "files": [
       "dist/**/*",
       "node_modules/**/*",
@@ -107,16 +108,17 @@
       "target": [
         "AppImage"
       ],
+      "artifactName": "CharacterCounter-${version}-${arch}.${ext}",
       "icon": "assets/icon.png",
       "category": "Utility"
     },
     "nsis": {
-      "artifactName": "CharacterCounter-Setup-${version}.${ext}",
+      "artifactName": "CharacterCounter-Setup-${version}-${arch}.${ext}",
       "oneClick": true,
       "allowToChangeInstallationDirectory": false
     },
     "portable": {
-      "artifactName": "CharacterCounter-Portable-${version}.${ext}"
+      "artifactName": "CharacterCounter-Portable-${version}-${arch}.${ext}"
     }
   }
 }
