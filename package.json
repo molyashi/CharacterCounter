@@ -29,9 +29,9 @@
     "clean": "rimraf release",
     "build:exe": "electron-builder",
     "build": "npm run clean && npm run build:webpack && npm run build:exe",
-    "build:win": "npm run clean && npm run build:webpack && electron-builder --win -c.publish.channel=latest-win",
-    "build:mac": "npm run clean && npm run build:webpack && electron-builder --mac -c.publish.channel=latest-mac",
-    "build:linux": "npm run clean && npm run build:webpack && electron-builder --linux -c.publish.channel=latest-linux"
+    "build:win": "npm run clean && npm run build:webpack && electron-builder --win",
+    "build:mac": "npm run clean && npm run build:webpack && electron-builder --mac",
+    "build:linux": "npm run clean && npm run build:webpack && electron-builder --linux"
   },
   "repository": {
     "type": "git",
@@ -82,11 +82,6 @@
       "node_modules/**/*",
       "package.json"
     ],
-    "publish": {
-      "provider": "github",
-      "owner": "molyashi",
-      "repo": "CharacterCounter"
-    },
     "directories": {
       "output": "release"
     },
@@ -94,14 +89,26 @@
       "target": [
         "nsis"
       ],
-      "icon": "assets/icon.png"
+      "icon": "assets/icon.png",
+      "publish": {
+        "provider": "github",
+        "owner": "molyashi",
+        "repo": "CharacterCounter",
+        "channel": "latest-win"
+      }
     },
     "mac": {
       "target": [
         "dmg"
       ],
       "icon": "assets/icon.png",
-      "category": "public.app-category.utilities"
+      "category": "public.app-category.utilities",
+      "publish": {
+        "provider": "github",
+        "owner": "molyashi",
+        "repo": "CharacterCounter",
+        "channel": "latest-mac"
+      }
     },
     "linux": {
       "target": [
@@ -109,7 +116,13 @@
       ],
       "artifactName": "CharacterCounter-${version}-${arch}.${ext}",
       "icon": "assets/icon.png",
-      "category": "Utility"
+      "category": "Utility",
+      "publish": {
+        "provider": "github",
+        "owner": "molyashi",
+        "repo": "CharacterCounter",
+        "channel": "latest-linux"
+      }
     },
     "nsis": {
       "artifactName": "CharacterCounter-Setup-${version}-${arch}.${ext}",
