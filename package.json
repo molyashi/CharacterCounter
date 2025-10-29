@@ -85,8 +85,7 @@
     "publish": {
       "provider": "github",
       "owner": "molyashi",
-      "repo": "CharacterCounter",
-      "channel": "latest"
+      "repo": "CharacterCounter"
     },
     "directories": {
       "output": "release"
